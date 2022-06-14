@@ -33,9 +33,22 @@ void serve_file(int, const char *);
 void* accept_request(void *client){
     int clnt_sock = *(int *)client;
     string buf;
-    int numsize = get_line(clnt_sock, buf);
+    string method;
+    get_line(clnt_sock, buf);//读取请求头到buf中
+
+    //处理请求方式
+    int i = 0;
+    while(i<buf.size()&&buf[i]!=' '){
+        method += buf[i];
+        i++;
+    }
+    //既不是get请求也不是post请求，一般来说get请求是访问，post请求是修改
+    if(method.compare("GET")!=0&&method.compare("POST")!=0){
+        unimplemented(clnt_sock);
+        return NULL;
+    }
 }
-int get_line(int clnt_sock, string& buf){
+void get_line(int clnt_sock, string& buf){
     int i=0;
     char c = '\0';
     int n;
@@ -54,7 +67,7 @@ int get_line(int clnt_sock, string& buf){
         i++;
     }
     buf+='\0';
-    return i;
+    return ;
 }
 
 int start_up(unsigned int &port){
@@ -83,6 +96,26 @@ int start_up(unsigned int &port){
     return httpd;
 }
 
+//传入客户端fd，服务端无法解析请求方法，返回码501
+void unimplemented(int clnt_sock){
+    char buf[1024];
+    sprintf(buf, "HTTP/1.0 501 Method Not Implemented\r\n");
+    send(clnt_sock, buf, sizeof(buf), 0);
+    sprintf(buf, "Content-Type: text/html\r\n");
+    send(clnt_sock, buf, sizeof(buf), 0);
+    sprintf(buf, "\r\n");
+    send(clnt_sock, buf, sizeof(buf), 0);
+
+    //HTML的消息头和消息体
+    sprintf(buf, "<HTML><HEAD><TITLE>Method Not Implemented\r\n");
+	send(clnt_sock, buf, strlen(buf), 0);
+	sprintf(buf, "</TITLE></HEAD>\r\n");
+	send(clnt_sock, buf, strlen(buf), 0);
+	sprintf(buf, "<BODY><P>HTTP request method not supported.\r\n");
+	send(clnt_sock, buf, strlen(buf), 0);
+	sprintf(buf, "</BODY></HTML>\r\n");
+	send(clnt_sock, buf, strlen(buf), 0);
+}
 int main(){
     int serv_sock;
     int clnt_sock;
