@@ -14,7 +14,6 @@
 // #include <sys/stat.h>
 // #include <sys/wait.h>
 // #include <stdlib.h>
-//#include<>
 using namespace std;
 int start_up(unsigned int&);
 void* accept_request(void *);
