@@ -39,7 +39,7 @@ threadpool<T>::threadpool(int thread_number, int max_requests):
         throw std::exception();
     }
     for(int i=0;i<m_thread_number;i++){
-        if(pthread_create(m_threads[i], NULL, worker, this)!=0){
+        if(pthread_create(m_threads + i, NULL, worker, this)!=0){
             delete [] m_threads;
             throw std::exception();
         }
@@ -66,7 +66,7 @@ bool threadpool<T>::append(T* request){
     }
     m_workqueue.push_back(request);
     m_queuelocker.unlock();
-    m_queststat.push();
+    m_queststat.post();
     return true;
 }
 

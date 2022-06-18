@@ -10,9 +10,9 @@
 #include<stdio.h>
 #include<sys/stat.h>
 #include<assert.h>
-#include "./lock/lock.h"
-#include "./threadpool/threadpool.h"
-#include "./http_conn/http_conn.h"
+#include "lock/lock.h"
+#include "threadpool/threadpool.h"
+#include "http_conn/http_conn.h"
 #include<errno.h>
 
 # define MAX_EVENT_NUMBER  10000
@@ -34,7 +34,7 @@ void addfd(int epollfd, int clntfd){
 }
 
 
-int main(){
+int main(void){
     int serv_fd;
     unsigned short port = 9010;
     sockaddr_in serv_addr;
@@ -57,7 +57,7 @@ int main(){
     assert(ret>=0);
 
     ret = listen(serv_fd, 5);
-    assert(listen>=0);
+    assert(ret>=0);
     
     //创建线程池
     threadpool<http_conn>* pool = NULL;
@@ -80,7 +80,7 @@ int main(){
 
     while(1){
         int number = epoll_wait(epollfd, events, MAX_EVENT_NUMBER, -1);
-        if(number<0&&errno!=EINTR){
+        if((number<0)&&(errno!=EINTR)){
             printf("epoll failure\n");
             break;
         }
@@ -94,7 +94,7 @@ int main(){
                     continue;
                 }
                 if(http_conn::m_user_count >= MAX_FD){
-                    char* info = "Internal Server Busy";
+                    const char* info = "Internal Server Busy";
                     send(clnt_fd, info, strlen(info), 0);
                     close(clnt_fd);
                     continue;
@@ -111,4 +111,5 @@ int main(){
     delete [] users;
     delete pool;
     users = NULL;
+    return 0;
 }
