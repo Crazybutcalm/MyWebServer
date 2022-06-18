@@ -5,7 +5,7 @@
 #include<exception>
 #include<pthread.h>
 #include<list>
-#include "lock.h"
+#include "../lock/lock.h"
 
 template<class T>
 class threadpool{
