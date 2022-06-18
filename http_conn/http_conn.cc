@@ -65,6 +65,7 @@ void http_conn::process_read(){
     //如果既不是POST请求也不是GET请求则返回501
     if(strcasecmp(m_method, "GET")&&strcasecmp(m_method, "POST")){//支持GET和POST请求
         not_implemented();
+        close_conn();
         return;
     }
 
@@ -105,50 +106,111 @@ void http_conn::process_read(){
     if(stat(m_path, &st) == -1){
         while((numchars>0)&&strcmp("\n", m_read_buf))numchars = get_line();
         not_found();
+        close_conn();
+        return ;
     }
     else{
-        if((st.st_mode & S_IFMT) == S_IFDIR){
+        if((st.st_mode & S_IFMT) == S_IFDIR){//如果是目录,自动打开test.html
             strcat(m_path, "/test.html");
         }
 
         if((st.st_mode & S_IXUSR) ||
             (st.st_mode & S_IXGRP) ||
             (st.st_mode & S_IXOTH))
+            //S_IXUSR:文件所有者具可执行权限
+		    //S_IXGRP:用户组具可执行权限
+		    //S_IXOTH:其他用户具可读取权限 
             cgi = 1;
         
-        if(!cgi)serve_file();
-        else execute_cgi();
+        if(!cgi)serve_file();//如果不是cgi就返回文件
+        else execute_cgi();//如果是cgi那么就处理cgi
     }
+
+    close_conn();
+
+    return ;
 }
 
 void http_conn::not_implemented(){
-
+    sprintf(m_write_buf, "HTTP/1.0 501 Method Not Implement\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "Content-Type: text/thml\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "<HTML><HEAD><TITLE>Method Not Implemented\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "</TITLE></HEAD>\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "<BODY><P>HTTP request method not supported.\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "</BODY></HTML>\r\n");
+    send(m_clntfd, m_write_buf, strlen(m_write_buf), 0);
 }
 
 void http_conn::not_found(){
-
+    sprintf(m_write_buf, "HTTP/1.0 404 Not Found\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "Content-Type: text/thml\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "<HTML><TITLE>Not Found</TITLE>\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "<BODY><P>The server could not fulfill\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "your request because the resource specified\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "is unavailable or nonexistent.\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "</BODY></HTML>\r\n");
+    send(m_clntfd, m_write_buf, strlen(m_write_buf), 0);
 }
 
 void http_conn::bad_request(){
-
+    sprintf(m_write_buf, "HTTP/1.0 400 Bad Request\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "Content-Type: text/thml\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "<P>Your browser sent a bad request, ");
+    sprintf(m_write_buf+strlen(m_write_buf), "such as a POST without a Content-Length.\r\n");
+    send(m_clntfd, m_write_buf, strlen(m_write_buf), 0);
 }
 
 void http_conn::get_request(){
-
+    sprintf(m_write_buf, "HTTP/1.0 200 OK\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "Content-Type: text/thml\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "\r\n");
+    send(m_clntfd, m_write_buf, strlen(m_write_buf), 0);
 }
 
 void http_conn::internal_error(){
-
+    sprintf(m_write_buf, "HTTP/1.0 500 Internal Server Error\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "Content-Type: text/thml\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "\r\n");
+    sprintf(m_write_buf+strlen(m_write_buf), "<P>Error prohibited CGI execution.\r\n");
+    send(m_clntfd, m_write_buf, strlen(m_write_buf), 0);
 }
 
 void http_conn::serve_file(){
+    FILE* resource = NULL;
 
+    resource = fopen(m_path, "r");
+    if(resource==NULL)not_found();
+    else{
+        get_request();
+        cat(resource);
+    }
+    fclose(resource);
+}
+
+void http_conn::cat(FILE* resource){
+    char buf[1024];
+    fgets(buf, sizeof(buf), resource);
+    while(!feof(resource)){
+        send(m_clntfd, buf, strlen(buf), 0);
+        fgets(buf, sizeof(buf), resource);
+    }
 }
 
 void http_conn::execute_cgi(){
-
+    
 }
 
-void http_conn::process_write(){
+void http_conn::close_conn(){
+    if(m_clntfd!=-1){
+        removefd(m_epollfd, m_clntfd);
+        m_epollfd = -1;
+        m_user_count--;
+    }
+}
 
+void http_conn::process(){
+    process_read();
 }

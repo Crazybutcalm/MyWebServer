@@ -23,7 +23,7 @@ private:
     static const int READ_BUFFER_SIZE = 2048;
     static const int WRITE_BUFFER_SIZE = 1024;
 
-private:
+public:
     static int m_epollfd;//同一个EPOLL内核
     static int m_user_count;//连接数量
 
@@ -35,7 +35,7 @@ public:
 
 private:
     void process_read();
-    void process_write();
+    // void process_write();
     int get_line();
     void not_implemented();
     void not_found();
@@ -44,7 +44,8 @@ private:
     void internal_error();
     void serve_file();
     void execute_cgi();
-
+    void close_conn();
+    void cat(FILE*);
 private:
     int m_clntfd;
     sockaddr_in m_clntaddr;
