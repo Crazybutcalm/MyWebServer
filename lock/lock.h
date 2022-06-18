@@ -11,11 +11,6 @@ public:
             throw std::exception();
         }
     }
-    sem(int num){
-        if(sem_init(&m_sem, 0, num)!=0){
-            throw std::exception();
-        }
-    }
     ~sem(){
         sem_destroy(&m_sem);
     }
@@ -45,9 +40,6 @@ public:
     bool unlock(){
         return pthread_mutex_unlock(&m_mutex) == 0;
     }
-    pthread_mutex_t * get(){
-        return &m_mutex;
-    }
 private:
     pthread_mutex_t m_mutex;
 };
@@ -64,6 +56,7 @@ public:
         }
     }
     ~cond(){
+        pthread_mutex_destroy(&m_mutex);
         pthread_cond_destroy(&m_cond);
     }
     bool wait(){

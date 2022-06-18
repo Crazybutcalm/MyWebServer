@@ -18,20 +18,21 @@
 # define MAX_EVENT_NUMBER  10000
 # define MAX_FD 65536
 
-int setnonblocking(int fd){
-    int old_option = fcntl(fd, F_GETFL);
-    int new_option = old_option | O_NONBLOCK;
-    fcntl(fd, F_SETFL, new_option);
-    return old_option;
-}
+// int setnonblocking(int fd){
+//     int old_option = fcntl(fd, F_GETFL);
+//     int new_option = old_option | O_NONBLOCK;
+//     fcntl(fd, F_SETFL, new_option);
+//     return old_option;
+// }
 
-void addfd(int epollfd, int clntfd){
-    epoll_event event;
-    event.data.fd = clntfd;
-    event.events = EPOLLIN;
-    epoll_ctl(epollfd, EPOLL_CTL_ADD, clntfd, &event);
-    setnonblocking(clntfd);
-}
+extern void addfd(int epollfd, int clntfd);
+// {
+//     epoll_event event;
+//     event.data.fd = clntfd;
+//     event.events = EPOLLIN;
+//     epoll_ctl(epollfd, EPOLL_CTL_ADD, clntfd, &event);
+//     setnonblocking(clntfd);
+// }
 
 
 int main(void){
@@ -58,7 +59,9 @@ int main(void){
 
     ret = listen(serv_fd, 5);
     assert(ret>=0);
-    
+
+    printf("http server_sock is %d\n", serv_fd);
+    printf("http running on port %d\n", port);
     //创建线程池
     threadpool<http_conn>* pool = NULL;
     try{
@@ -89,6 +92,7 @@ int main(void){
                 sockaddr_in clnt_addr;
                 socklen_t clnt_len = sizeof(clnt_addr);
                 int clnt_fd = accept(serv_fd, (sockaddr*)&clnt_addr, &clnt_len);
+                printf("New connection....  ip: %s , port: %d\n",inet_ntoa(clnt_addr.sin_addr),ntohs(clnt_addr.sin_port));
                 if(clnt_fd<0){
                     printf("errno is: %d\n", errno);
                     continue;

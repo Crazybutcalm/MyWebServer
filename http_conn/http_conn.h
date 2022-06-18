@@ -12,15 +12,15 @@
 #include<string.h>
 #include<stdio.h>
 #include<sys/stat.h>
-// #include<sys/wait.h>
-// #include<stdlib.h>
+#include<sys/wait.h>
+#include<stdlib.h>
 class http_conn{
 public:
-    http_conn();
-    ~http_conn();
+    http_conn(){};
+    ~http_conn(){};
 
 private:
-    static const int READ_BUFFER_SIZE = 2048;
+//     static const int READ_BUFFER_SIZE = 2048;
     static const int WRITE_BUFFER_SIZE = 1024;
 
 public:
@@ -36,7 +36,7 @@ public:
 private:
     void process_read();
     // void process_write();
-    int get_line();
+    int get_line(char*, int);
     void not_implemented();
     void not_found();
     void bad_request();
@@ -49,7 +49,7 @@ private:
 private:
     int m_clntfd;
     sockaddr_in m_clntaddr;
-    char m_read_buf[READ_BUFFER_SIZE];
+    // char m_read_buf[READ_BUFFER_SIZE];
     char m_write_buf[WRITE_BUFFER_SIZE];
     char m_method[255];
     char m_url[255];

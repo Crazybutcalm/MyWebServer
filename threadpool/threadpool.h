@@ -23,12 +23,14 @@ private:
     std::list<T*> m_workqueue;//请求队列
     locker m_queuelocker; // 互斥锁
     sem m_queststat; //是否有任务需要处理
+    bool m_stop;
 };
 
 //创建线程池
 template<class T>
 threadpool<T>::threadpool(int thread_number, int max_requests):
-        m_thread_number(thread_number), m_max_requests(max_requests), m_threads(NULL)
+        m_thread_number(thread_number), m_max_requests(max_requests), m_threads(NULL),
+        m_stop(false)
 {
     if((thread_number<=0)||(max_requests<=0)){
         throw std::exception();
@@ -39,6 +41,7 @@ threadpool<T>::threadpool(int thread_number, int max_requests):
         throw std::exception();
     }
     for(int i=0;i<m_thread_number;i++){
+        printf("create the %dth thread\n", i);
         if(pthread_create(m_threads + i, NULL, worker, this)!=0){
             delete [] m_threads;
             throw std::exception();
@@ -54,6 +57,7 @@ threadpool<T>::threadpool(int thread_number, int max_requests):
 template<class T>
 threadpool<T>::~threadpool(){
     delete [] m_threads;
+    m_stop = true;
 }
 
 //加入到请求队列
@@ -81,7 +85,7 @@ void* threadpool<T>::worker(void* arg){
 //调用HTTP接口函数
 template<class T>
 void threadpool<T>::run(){
-    while(1){
+    while(!m_stop){
         m_queststat.wait();
         m_queuelocker.lock();
         if(m_workqueue.empty()){
