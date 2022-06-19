@@ -7,10 +7,13 @@ int setnonblocking(int fd){
     return old_option;
 }
 
-void addfd(int epollfd, int clntfd){
+void addfd(int epollfd, int clntfd, bool one_shot){
     epoll_event event;
     event.data.fd = clntfd;
-    event.events = EPOLLIN;
+    event.events = EPOLLIN | EPOLLET;
+    if(one_shot){
+        event.events |= EPOLLONESHOT;
+    }
     epoll_ctl(epollfd, EPOLL_CTL_ADD, clntfd, &event);
     setnonblocking(clntfd);
 }
@@ -26,7 +29,7 @@ int http_conn::m_user_count = 0;
 void http_conn::init(int clntfd, const sockaddr_in&addr){
     m_clntfd = clntfd;
     m_clntaddr = addr;
-    addfd(m_epollfd, clntfd);
+    addfd(m_epollfd, clntfd, true);
     m_user_count++;
     cgi = 0;
     query_string = NULL;

@@ -18,21 +18,7 @@
 # define MAX_EVENT_NUMBER  10000
 # define MAX_FD 65536
 
-// int setnonblocking(int fd){
-//     int old_option = fcntl(fd, F_GETFL);
-//     int new_option = old_option | O_NONBLOCK;
-//     fcntl(fd, F_SETFL, new_option);
-//     return old_option;
-// }
-
-extern void addfd(int epollfd, int clntfd);
-// {
-//     epoll_event event;
-//     event.data.fd = clntfd;
-//     event.events = EPOLLIN;
-//     epoll_ctl(epollfd, EPOLL_CTL_ADD, clntfd, &event);
-//     setnonblocking(clntfd);
-// }
+extern void addfd(int epollfd, int clntfd, bool one_shot);
 
 
 int main(void){
@@ -78,7 +64,7 @@ int main(void){
     epoll_event events[MAX_EVENT_NUMBER];
     int epollfd = epoll_create(5);
     assert(epollfd!=1);
-    addfd(epollfd, serv_fd);
+    addfd(epollfd, serv_fd, false);
     http_conn::m_epollfd = epollfd;
 
     while(1){
