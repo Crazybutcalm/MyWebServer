@@ -78,7 +78,7 @@ int main(void){
                 sockaddr_in clnt_addr;
                 socklen_t clnt_len = sizeof(clnt_addr);
                 int clnt_fd = accept(serv_fd, (sockaddr*)&clnt_addr, &clnt_len);
-                printf("New connection....  ip: %s , port: %d\n",inet_ntoa(clnt_addr.sin_addr),ntohs(clnt_addr.sin_port));
+                printf("New connection....  ip: %s , port: %d , clntfd %d\n",inet_ntoa(clnt_addr.sin_addr),ntohs(clnt_addr.sin_port), clnt_fd);
                 if(clnt_fd<0){
                     printf("errno is: %d\n", errno);
                     continue;
