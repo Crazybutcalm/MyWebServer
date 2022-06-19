@@ -4,7 +4,7 @@
 #include <exception>
 #include <semaphore.h>
 
-class sem{
+class sem {
 public:
     sem(){
         if(sem_init(&m_sem, 0, 0)!=0){

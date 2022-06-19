@@ -82,7 +82,7 @@ void* threadpool<T>::worker(void* arg){
     return pool;
 }
 
-//调用HTTP接口函数
+//调用HTTP接口函数.
 template<class T>
 void threadpool<T>::run(){
     while(!m_stop){

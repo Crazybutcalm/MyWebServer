@@ -43,7 +43,7 @@ int main(void){
     ret = bind(serv_fd, (sockaddr*)&serv_addr, sizeof(serv_addr));
     assert(ret>=0);
 
-    ret = listen(serv_fd, 120);
+    ret = listen(serv_fd, 5);
     assert(ret>=0);
 
     printf("http server_sock is %d\n", serv_fd);

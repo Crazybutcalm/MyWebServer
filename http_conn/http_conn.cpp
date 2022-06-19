@@ -62,6 +62,8 @@ void http_conn::process_read(){
     j = 0;
     char buf[1024];
     int numchars = get_line(buf, sizeof(buf));//返回request_line的长度
+
+    printf("what read: %s\n", buf);
     while(!isspace(buf[i])&&(j<sizeof(m_method)-1)){
         m_method[j] = buf[i];
         i++;
@@ -91,6 +93,7 @@ void http_conn::process_read(){
     }
     m_url[j] = '\0';
 
+    // printf("m_url: %s\n", m_url);
     if(strcasecmp(m_method, "GET")==0){
         query_string = m_url;
         while((*query_string!='?')&&(*query_string!='\0'))query_string++;
@@ -104,11 +107,10 @@ void http_conn::process_read(){
     }
 
     sprintf(m_path, "httpdocs%s", m_url);
-
     if(m_path[strlen(m_path) - 1] == '/'){
         strcat(m_path, "test.html");
     }
-
+    // printf("m_path: %s\n", m_path);
     //这里开始是什么意思？
     if(stat(m_path, &st) == -1){
         while((numchars>0)&&strcmp("\n", buf))numchars = get_line(buf, sizeof(buf));
@@ -120,7 +122,7 @@ void http_conn::process_read(){
         if((st.st_mode & S_IFMT) == S_IFDIR){//如果是目录,自动打开test.html
             strcat(m_path, "/test.html");
         }
-
+        // printf("m_path: %s\n", m_path);
         if((st.st_mode & S_IXUSR) ||
             (st.st_mode & S_IXGRP) ||
             (st.st_mode & S_IXOTH))
@@ -139,7 +141,7 @@ void http_conn::process_read(){
 }
 
 void http_conn::not_implemented(){
-    sprintf(m_write_buf, "HTTP/1.0 501 Method Not Implement\r\n");
+    sprintf(m_write_buf, "HTTP/1.1 501 Method Not Implement\r\n");
     sprintf(m_write_buf+strlen(m_write_buf), "Content-Type: text/html\r\n");
     sprintf(m_write_buf+strlen(m_write_buf), "\r\n");
     sprintf(m_write_buf+strlen(m_write_buf), "<HTML><HEAD><TITLE>Method Not Implemented\r\n");
@@ -150,7 +152,7 @@ void http_conn::not_implemented(){
 }
 
 void http_conn::not_found(){
-    sprintf(m_write_buf, "HTTP/1.0 404 Not Found\r\n");
+    sprintf(m_write_buf, "HTTP/1.1 404 Not Found\r\n");
     sprintf(m_write_buf+strlen(m_write_buf), "Content-Type: text/html\r\n");
     sprintf(m_write_buf+strlen(m_write_buf), "\r\n");
     sprintf(m_write_buf+strlen(m_write_buf), "<HTML><TITLE>Not Found</TITLE>\r\n");
@@ -162,7 +164,7 @@ void http_conn::not_found(){
 }
 
 void http_conn::bad_request(){
-    sprintf(m_write_buf, "HTTP/1.0 400 Bad Request\r\n");
+    sprintf(m_write_buf, "HTTP/1.1 400 Bad Request\r\n");
     sprintf(m_write_buf+strlen(m_write_buf), "Content-Type: text/html\r\n");
     sprintf(m_write_buf+strlen(m_write_buf), "\r\n");
     sprintf(m_write_buf+strlen(m_write_buf), "<P>Your browser sent a bad request, ");
@@ -172,14 +174,14 @@ void http_conn::bad_request(){
 
 void http_conn::get_request(){
     (void)m_path;
-    sprintf(m_write_buf, "HTTP/1.0 200 OK\r\n");
+    sprintf(m_write_buf, "HTTP/1.1 200 OK\r\n");
     sprintf(m_write_buf+strlen(m_write_buf), "Content-Type: text/html\r\n");
     sprintf(m_write_buf+strlen(m_write_buf), "\r\n");
     send(m_clntfd, m_write_buf, strlen(m_write_buf), 0);
 }
 
 void http_conn::internal_error(){
-    sprintf(m_write_buf, "HTTP/1.0 500 Internal Server Error\r\n");
+    sprintf(m_write_buf, "HTTP/1.1 500 Internal Server Error\r\n");
     sprintf(m_write_buf+strlen(m_write_buf), "Content-Type: text/html\r\n");
     sprintf(m_write_buf+strlen(m_write_buf), "\r\n");
     sprintf(m_write_buf+strlen(m_write_buf), "<P>Error prohibited CGI execution.\r\n");
@@ -248,7 +250,7 @@ void http_conn::execute_cgi(){
 	 }
 
 
-	 sprintf(buf, "HTTP/1.0 200 OK\r\n");
+	 sprintf(buf, "HTTP/1.1 200 OK\r\n");
 	 send(m_clntfd, buf, strlen(buf), 0);
 	 if (pipe(cgi_output) < 0) {
 		  internal_error();
