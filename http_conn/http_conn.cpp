@@ -19,7 +19,7 @@ void addfd(int epollfd, int clntfd, bool one_shot){
 }
 
 void removefd(int epollfd, int clntfd){
-    epoll_ctl(epollfd, EPOLL_CTL_DEL, clntfd, 0);
+    epoll_ctl(epollfd, EPOLL_CTL_DEL, clntfd, NULL);
     close(clntfd);
 }
 
@@ -330,7 +330,6 @@ void http_conn::execute_cgi(){
 void http_conn::close_conn(){
     if(m_clntfd!=-1){
         removefd(m_epollfd, m_clntfd);
-        m_epollfd = -1;
         m_user_count--;
     }
 }
@@ -338,3 +337,8 @@ void http_conn::close_conn(){
 void http_conn::process(){
     process_read();
 }
+
+// void http_conn::do_read(){
+//     char line[1024] = {0};
+//     int len = get_line(line, sizeof(line));
+// }

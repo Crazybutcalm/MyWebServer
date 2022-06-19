@@ -34,6 +34,7 @@ public:
     void process();
 
 private:
+    // void do_read();
     void process_read();
     // void process_write();
     int get_line(char*, int);
