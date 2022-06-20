@@ -97,7 +97,6 @@ void http_conn::process_read(){
     if(strcasecmp(m_method, "GET")==0){
         query_string = m_url;
         while((*query_string!='?')&&(*query_string!='\0'))query_string++;
-
         //若果有？
         if(*query_string == '?'){
             cgi = 1;
@@ -107,6 +106,7 @@ void http_conn::process_read(){
     }
 
     sprintf(m_path, "httpdocs%s", m_url);
+
     if(m_path[strlen(m_path) - 1] == '/'){
         strcat(m_path, "test.html");
     }
@@ -120,8 +120,10 @@ void http_conn::process_read(){
     }
     else{
         if((st.st_mode & S_IFMT) == S_IFDIR){//如果是目录,自动打开test.html
+            printf("is directory");
             strcat(m_path, "/test.html");
         }
+        // printf("cgi value:%d\n", cgi);
         // printf("m_path: %s\n", m_path);
         if((st.st_mode & S_IXUSR) ||
             (st.st_mode & S_IXGRP) ||
@@ -130,7 +132,7 @@ void http_conn::process_read(){
 		    //S_IXGRP:用户组具可执行权限
 		    //S_IXOTH:其他用户具可读取权限 
             cgi = 1;
-        
+        printf("cgi value:%d\n", cgi);
         if(!cgi)serve_file();//如果不是cgi就返回文件
         else execute_cgi();//如果是cgi那么就处理cgi
     }
@@ -190,6 +192,7 @@ void http_conn::internal_error(){
 
 void http_conn::serve_file(){
     FILE* resource = NULL;
+    // printf("m_path: %s\n", m_path);//没有到这里来
     resource = fopen(m_path, "r");
     if(resource==NULL)not_found();
     else{
@@ -267,48 +270,48 @@ void http_conn::execute_cgi(){
 	 }
 	 if (pid == 0)  /* 子进程: 运行CGI 脚本 */
 	 {
-		  char meth_env[255];
-		  char query_env[255];
-		  char length_env[255];
+        char meth_env[300];
+        char query_env[255];
+        char length_env[255];
 
-		  dup2(cgi_output[1], 1);
-		  dup2(cgi_input[0], 0);
-
-
-		  close(cgi_output[0]);//关闭了cgi_output中的读通道
-		  close(cgi_input[1]);//关闭了cgi_input中的写通道
+        dup2(cgi_output[1], 1);
+        dup2(cgi_input[0], 0);
 
 
-		  sprintf(meth_env, "REQUEST_METHOD= %s", m_method);
-		  putenv(meth_env);
+        close(cgi_output[0]);//关闭了cgi_output中的读通道
+        close(cgi_input[1]);//关闭了cgi_input中的写通道
 
-		  if (strcasecmp(m_method, "GET") == 0) {
-		  //存储QUERY_STRING
-		   sprintf(query_env, "QUERY_STRING=%s", query_string);
-		   putenv(query_env);
-		  }
-		  else {   /* POST */
-			//存储CONTENT_LENGTH
-		   sprintf(length_env, "CONTENT_LENGTH=%d", content_length);
-		   putenv(length_env);
-		  }
+        
+        sprintf(meth_env, "REQUEST_METHOD=%s", m_method);
+        putenv(meth_env);
+
+        if (strcasecmp(m_method, "GET") == 0) {
+        //存储QUERY_STRING
+        sprintf(query_env, "QUERY_STRING=%s", query_string);
+        putenv(query_env);
+        }
+        else {   /* POST */
+        //存储CONTENT_LENGTH
+        sprintf(length_env, "CONTENT_LENGTH=%d", content_length);
+        putenv(length_env);
+        }
 
 
-		  execl(m_path, m_path, NULL);//执行CGI脚本
-		  exit(0);
+        execl(m_path, m_path, NULL);//执行CGI脚本
+        exit(0);
 	 } 
 	 else {  
-		  close(cgi_output[1]);
-		  close(cgi_input[0]);
-		  if (strcasecmp(m_method, "POST") == 0)
+        close(cgi_output[1]);
+        close(cgi_input[0]);
+        if (strcasecmp(m_method, "POST") == 0)
 
-			 for (i = 0; i < content_length; i++) 
-			   {
+            for (i = 0; i < content_length; i++) 
+            {
 
-				recv(m_clntfd, &c, 1, 0);
+            recv(m_clntfd, &c, 1, 0);
 
-				write(cgi_input[1], &c, 1);
-			   }
+            write(cgi_input[1], &c, 1);
+            }
 
 
 
@@ -325,7 +328,7 @@ void http_conn::execute_cgi(){
 		close(cgi_input[1]);
 
 
-		  waitpid(pid, &status, 0);
+        waitpid(pid, &status, 0);
 	}
 }
 

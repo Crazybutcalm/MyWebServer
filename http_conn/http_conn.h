@@ -52,7 +52,7 @@ private:
     sockaddr_in m_clntaddr;
     // char m_read_buf[READ_BUFFER_SIZE];
     char m_write_buf[WRITE_BUFFER_SIZE];
-    char m_method[255];
+    char m_method[150];
     char m_url[255];
     char m_path[512];
     char *query_string;
