@@ -282,7 +282,7 @@ void http_conn::execute_cgi(){
         close(cgi_input[1]);//关闭了cgi_input中的写通道
 
         
-        sprintf(meth_env, "REQUEST_METHOD=%s", m_method);
+        // sprintf(meth_env, "REQUEST_METHOD=%s", m_method);
         putenv(meth_env);
 
         if (strcasecmp(m_method, "GET") == 0) {
