@@ -26,5 +26,5 @@ make
 
 
 
-参考资料：《TCP/IP网络编程》,《Linux高性能服务器编程》,以及开源项目https://github.com/forthespada/MyPoorWebServer
+参考资料：《TCP/IP网络编程》,《Linux高性能服务器编程》
 
