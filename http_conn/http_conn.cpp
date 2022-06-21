@@ -73,7 +73,6 @@ void http_conn::process_read(){
     //如果既不是POST请求也不是GET请求则返回501
     if(strcasecmp(m_method, "GET")&&strcasecmp(m_method, "POST")){//支持GET和POST请求
         not_implemented();
-        // close_conn();
         return;
     }
 
@@ -92,27 +91,15 @@ void http_conn::process_read(){
     }
     m_url[j] = '\0';
 
-    if(strcasecmp(m_method, "GET")==0){
-        query_string = m_url;
-        while((*query_string!='?')&&(*query_string!='\0'))query_string++;
-        //若果有？
-        if(*query_string == '?'){
-            cgi = 1;
-            *query_string = '\0';
-            query_string++;
-        }
-    }
+    sprintf(m_path, "httpdocs%s", m_url);//文件根目录
 
-    sprintf(m_path, "httpdocs%s", m_url);
-
-    if(m_path[strlen(m_path) - 1] == '/'){
+    if(m_path[strlen(m_path) - 1] == '/'){//默认访问test.html
         strcat(m_path, "test.html");
     }
 
-    if(stat(m_path, &st) == -1){
+    if(stat(m_path, &st) == -1){//文件是否存在
         while((numchars>0)&&strcmp("\n", buf))numchars = get_line(buf, sizeof(buf));
         not_found();
-        // close_conn();
         return ;
     }
     else{
@@ -127,6 +114,7 @@ void http_conn::process_read(){
 		    //S_IXGRP:用户组具可执行权限
 		    //S_IXOTH:其他用户具可读取权限 
             cgi = 1;
+
         if(!cgi)serve_file();//如果不是cgi就返回文件
         else execute_cgi();//如果是cgi那么就处理cgi
     }
@@ -134,6 +122,157 @@ void http_conn::process_read(){
     close_conn();
 
     return ;
+}
+
+void http_conn::serve_file(){
+    int fd = open(m_path, O_RDONLY);
+    if(fd == -1){
+        not_found();
+    }
+    else{
+        get_request();
+        cat(fd);
+    }
+    close(fd);
+}
+
+void http_conn::cat(int fd){
+    char buf[2048];
+    int len = 0, ret = 0;
+    while((len=read(fd, buf, sizeof(buf)))>0){
+        ret = send(m_clntfd, buf, len, 0);
+        if(ret==-1){
+            if((errno == EAGAIN )||(errno == EINTR)){
+                continue;
+            }
+            else{
+                perror("send error:\n");
+                exit(1);
+            }
+        }
+    }
+    
+}
+
+void http_conn::execute_cgi(){
+    char buf[1024];
+    int cgi_output[2];
+    int cgi_input[2];
+    char content[1024];
+    pid_t pid;
+    int status;
+
+    int i;
+    char c;
+
+    int numchars = 1;
+    int content_length = -1;
+    //默认字符
+    buf[0] = 'A'; 
+    buf[1] = '\0';
+    if (strcasecmp(m_method, "GET") == 0){
+        while ((numchars > 0) && strcmp("\n", buf))
+            {
+                numchars = get_line(buf, sizeof(buf));
+            }
+    }
+    else    
+    {
+        numchars = get_line(buf, sizeof(buf));
+        while ((numchars > 0) && strcmp("\n", buf))
+        {
+            buf[15] = '\0';
+            if (strcasecmp(buf, "Content-Length:") == 0)
+                content_length = atoi(&(buf[16]));
+                numchars = get_line(buf, sizeof(buf));
+        }
+        if (content_length == -1) {
+        bad_request();
+        return;
+        }
+    }
+
+    sprintf(buf, "HTTP/1.1 200 OK\r\n");
+    send(m_clntfd, buf, strlen(buf), 0);
+    if (pipe(cgi_output) < 0) {
+        internal_error();
+        return;
+    }
+    if (pipe(cgi_input) < 0) { 
+        internal_error();
+        return;
+    }
+
+    if ( (pid = fork()) < 0 ) {
+        internal_error();
+        return;
+    }
+    if (pid == 0)  /* 子进程: 运行CGI 脚本 */
+    {
+        char meth_env[255];
+        char query_env[255];
+        char length_env[255];
+
+        dup2(cgi_output[1], 1);
+        dup2(cgi_input[0], 0);
+
+
+        close(cgi_output[0]);//关闭了cgi_output中的读通道
+        close(cgi_input[1]);//关闭了cgi_input中的写通道
+
+        
+        sprintf(meth_env, "REQUEST_METHOD=%s", m_method);
+        putenv(meth_env);
+
+        if (strcasecmp(m_method, "GET") == 0) {
+            //存储QUERY_STRING
+            sprintf(query_env, "QUERY_STRING=%s", query_string);
+            putenv(query_env);
+        }
+        else {   /* POST */
+            //存储CONTENT_LENGTH
+            sprintf(length_env, "CONTENT_LENGTH=%d", content_length);
+            putenv(length_env);
+        }
+
+        execl(m_path, m_path, NULL);//执行CGI脚本
+        exit(0);
+    } 
+    else {  
+        close(cgi_output[1]);
+        close(cgi_input[0]);
+        if (strcasecmp(m_method, "POST") == 0){
+            for (i = 0; i < content_length; i++) 
+            {
+                recv(m_clntfd, &c, 1, 0);
+                write(cgi_input[1], &c, 1);
+            }
+        }
+
+        //读取cgi脚本返回数据
+        while (read(cgi_output[0], &c, 1) > 0)
+            //发送给浏览器
+        {			
+            send(m_clntfd, &c, 1, 0);
+        }
+
+        //运行结束关闭
+        close(cgi_output[0]);
+        close(cgi_input[1]);
+
+        waitpid(pid, &status, 0);
+    }
+}
+
+void http_conn::close_conn(){
+    if(m_clntfd!=-1){
+        removefd(m_epollfd, m_clntfd);
+        m_user_count--;
+    }
+}
+
+void http_conn::process(){
+    process_read();
 }
 
 void http_conn::not_implemented(){
@@ -183,148 +322,3 @@ void http_conn::internal_error(){
     send(m_clntfd, m_write_buf, strlen(m_write_buf), 0);
 }
 
-void http_conn::serve_file(){
-    FILE* resource = NULL;
-    resource = fopen(m_path, "r");
-    if(resource==NULL)not_found();
-    else{
-        get_request();
-        cat(resource);
-    }
-    fclose(resource);
-}
-
-void http_conn::cat(FILE* resource){
-    char buf[2048];
-    fgets(buf, sizeof(buf), resource);
-    while(!feof(resource)){
-        // printf("%s", buf);
-        send(m_clntfd, buf, strlen(buf), 0);
-        fgets(buf, sizeof(buf), resource);
-    }
-}
-
-void http_conn::execute_cgi(){
-    char buf[1024];
-    int cgi_output[2];
-    int cgi_input[2];
-    char content[1024];
-    pid_t pid;
-    int status;
-
-    int i;
-    char c;
-
-    int numchars = 1;
-    int content_length = -1;
-    //默认字符
-    buf[0] = 'A'; 
-    buf[1] = '\0';
-    if (strcasecmp(m_method, "GET") == 0)
-
-        while ((numchars > 0) && strcmp("\n", buf))
-        {
-            numchars = get_line(buf, sizeof(buf));
-        }
-    else    
-    {
-
-        numchars = get_line(buf, sizeof(buf));
-        while ((numchars > 0) && strcmp("\n", buf))
-        {
-            buf[15] = '\0';
-            if (strcasecmp(buf, "Content-Length:") == 0)
-                content_length = atoi(&(buf[16]));
-                numchars = get_line(buf, sizeof(buf));
-        }
-
-        if (content_length == -1) {
-        bad_request();
-        return;
-        }
-    }
-
-
-    sprintf(buf, "HTTP/1.1 200 OK\r\n");
-    send(m_clntfd, buf, strlen(buf), 0);
-    if (pipe(cgi_output) < 0) {
-        internal_error();
-        return;
-    }
-    if (pipe(cgi_input) < 0) { 
-        internal_error();
-        return;
-    }
-
-    if ( (pid = fork()) < 0 ) {
-        internal_error();
-        return;
-    }
-    if (pid == 0)  /* 子进程: 运行CGI 脚本 */
-    {
-        char meth_env[300];
-        char query_env[255];
-        char length_env[255];
-
-        dup2(cgi_output[1], 1);
-        dup2(cgi_input[0], 0);
-
-
-        close(cgi_output[0]);//关闭了cgi_output中的读通道
-        close(cgi_input[1]);//关闭了cgi_input中的写通道
-
-        
-        sprintf(meth_env, "REQUEST_METHOD=%s", m_method);
-        putenv(meth_env);
-
-        if (strcasecmp(m_method, "GET") == 0) {
-        //存储QUERY_STRING
-        sprintf(query_env, "QUERY_STRING=%s", query_string);
-        putenv(query_env);
-        }
-        else {   /* POST */
-        //存储CONTENT_LENGTH
-        sprintf(length_env, "CONTENT_LENGTH=%d", content_length);
-        putenv(length_env);
-        }
-
-        execl(m_path, m_path, NULL);//执行CGI脚本
-        exit(0);
-    } 
-    else {  
-        close(cgi_output[1]);
-        close(cgi_input[0]);
-        if (strcasecmp(m_method, "POST") == 0){
-            for (i = 0; i < content_length; i++) 
-            {
-                recv(m_clntfd, &c, 1, 0);
-                write(cgi_input[1], &c, 1);
-            }
-        }
-
-        //读取cgi脚本返回数据
-        while (read(cgi_output[0], &c, 1) > 0)
-            //发送给浏览器
-        {			
-            send(m_clntfd, &c, 1, 0);
-        }
-
-        //运行结束关闭
-        close(cgi_output[0]);
-        close(cgi_input[1]);
-
-        waitpid(pid, &status, 0);
-    }
-}
-
-void http_conn::close_conn(){
-    if(m_clntfd!=-1){
-        removefd(m_epollfd, m_clntfd);
-        // m_clntfd = -1;
-        m_user_count--;
-    }
-}
-
-void http_conn::process(){
-    process_read();
-}

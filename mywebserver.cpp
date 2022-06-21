@@ -92,6 +92,10 @@ int main(void){
                 users[clnt_fd].init(clnt_fd, clnt_addr);
             }
             else{
+                if(events[i].events & (EPOLLERR | EPOLLHUP | EPOLLRDHUP)){
+                    printf("error event\n");
+                    continue;
+                }
                 pool->append(users + events[i].data.fd);
             }
         }

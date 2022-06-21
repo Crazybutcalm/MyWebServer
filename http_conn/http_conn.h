@@ -14,6 +14,7 @@
 #include<sys/stat.h>
 #include<sys/wait.h>
 #include<stdlib.h>
+#include<errno.h>
 class http_conn{
 public:
     http_conn(){};
@@ -46,7 +47,7 @@ private:
     void serve_file();
     void execute_cgi();
     void close_conn();
-    void cat(FILE*);
+    void cat(int);
 private:
     int m_clntfd;
     sockaddr_in m_clntaddr;
